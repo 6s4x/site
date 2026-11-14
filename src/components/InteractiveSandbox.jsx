@@ -129,7 +129,6 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
   const [selectedZone, setSelectedZone] = useState(wildfireZones[0]);
   const [forecastHour, setForecastHour] = useState(24);
   const [isSimulating, setIsSimulating] = useState(true);
-  const [activeBaseLayer, setActiveBaseLayer] = useState('dark');
   
   // NASA API Key state with user's verified official key pre-loaded!
   const [apiKey, setApiKey] = useState(DEFAULT_NASA_MAP_KEY);
@@ -147,26 +146,9 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
   const fireMarkersGroupRef = useRef(null);
   const plumeLayerGroupRef = useRef(null);
 
-  const getGibsDate = () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
-  };
-
-  const tileSources = {
-    dark: {
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; CARTO &copy; OpenStreetMap'
-    },
-    gibs: {
-      url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${getGibsDate()}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
-      attribution: '&copy; NASA Earthdata GIBS / VIIRS S-NPP True Color'
-    },
-    satellite: {
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      attribution: '&copy; Esri, Maxar'
-    }
-  };
+  // Pure High-Resolution Orbital Satellite Tiles (100% Free, Zero Key Needed)
+  const SATELLITE_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  const SATELLITE_ATTRIBUTION = '&copy; NASA Earth Observations &bull; Esri High-Res Satellite';
 
   // Helper to parse NASA FIRMS CSV response into structured points
   const parseFirmsCSV = (csvText) => {
@@ -252,9 +234,10 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      const initialLayer = L.tileLayer(tileSources[activeBaseLayer].url, {
-        maxZoom: 14,
-        attribution: tileSources[activeBaseLayer].attribution
+      // Pure High-Resolution Orbital Satellite Imagery (Esri World Imagery)
+      const initialLayer = L.tileLayer(SATELLITE_TILE_URL, {
+        maxZoom: 16,
+        attribution: SATELLITE_ATTRIBUTION
       }).addTo(map);
 
       tileLayerRef.current = initialLayer;
@@ -270,6 +253,7 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
       });
 
       mapInstanceRef.current = map;
+      setTimeout(() => map.invalidateSize(), 150);
       fetchLiveFirmsData(selectedZone, apiKey);
     }
 
@@ -280,19 +264,6 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
       }
     };
   }, []);
-
-  // Update Base Layer
-  useEffect(() => {
-    if (!mapInstanceRef.current || !tileLayerRef.current) return;
-    mapInstanceRef.current.removeLayer(tileLayerRef.current);
-
-    const newLayer = L.tileLayer(tileSources[activeBaseLayer].url, {
-      maxZoom: 14,
-      attribution: tileSources[activeBaseLayer].attribution
-    }).addTo(mapInstanceRef.current);
-
-    tileLayerRef.current = newLayer;
-  }, [activeBaseLayer]);
 
   // Handle Sector Change
   useEffect(() => {
@@ -531,25 +502,11 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
             {/* The Real Leaflet Map Container */}
             <div ref={mapContainerRef} className="w-full h-full z-10" />
 
-            {/* In-Map Top-Left Base Layer Selector Pills */}
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-slate-700 shadow-xl">
-              {[
-                { id: 'dark', label: 'Tactical Dark' },
-                { id: 'gibs', label: 'NASA GIBS Sat' },
-                { id: 'satellite', label: 'Esri Satellite' }
-              ].map((layer) => (
-                <button
-                  key={layer.id}
-                  onClick={() => setActiveBaseLayer(layer.id)}
-                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    activeBaseLayer === layer.id
-                      ? 'bg-[#0052FF] text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {layer.label}
-                </button>
-              ))}
+            {/* In-Map Top-Left Satellite Badge */}
+            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-slate-700 shadow-xl">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-semibold text-white tracking-wide">High-Res Orbital Satellite</span>
+              <span className="text-[10px] font-mono bg-blue-500/20 text-cyan-300 border border-blue-400/30 px-2 py-0.5 rounded font-bold">ACTIVE</span>
             </div>
 
             {/* In-Map Floating Legend */}
@@ -572,7 +529,7 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
             </div>
 
             {/* In-Map Top-Right Hotspot Selector */}
-            <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5">
+            <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 max-w-[170px]">
               {wildfireZones.map((zone) => (
                 <button
                   key={zone.id}
@@ -580,13 +537,14 @@ export default function InteractiveSandbox({ isOpen, onClose }) {
                     setSelectedZone(zone);
                     setForecastHour(0);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold text-left transition-all cursor-pointer backdrop-blur-md border ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold text-left transition-all cursor-pointer backdrop-blur-md border truncate ${
                     selectedZone.id === zone.id
                       ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-lg ring-1 ring-cyan-400'
                       : 'bg-slate-900/80 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-800'
                   }`}
+                  title={zone.name}
                 >
-                  {zone.name.split(' ')[0]} {zone.name.split(' ')[1] || ''}
+                  {zone.name}
                 </button>
               ))}
             </div>
