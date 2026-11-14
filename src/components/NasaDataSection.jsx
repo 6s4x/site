@@ -23,9 +23,9 @@ export default function NasaDataSection({ nasaData }) {
   // Sample NASA API payloads to display in interactive inspector
   const samplePayloads = {
     firms: {
-      endpoint: "GET https://firms.modaps.eosdis.nasa.gov/api/area/csv/[MAP_KEY]/VIIRS_SNPP_NRT/-122.5,37.5,-122.0,38.0/1",
+      endpoint: "GET https://firms.modaps.eosdis.nasa.gov/api/area/csv/2779a86977f57f39ace7ed51f327d1e8/VIIRS_SNPP_NRT/-122.5,37.5,-122.0,38.0/1",
       contentType: "application/json / GeoJSON",
-      latency: "10-minute cadence",
+      latency: "10-minute cadence (Active MAP_KEY: 2779a8...d1e8)",
       sample: `{
   "type": "FeatureCollection",
   "source": "NASA FIRMS NRT (VIIRS S-NPP)",
